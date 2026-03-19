@@ -236,11 +236,7 @@ npm install
 npm run dev
 ```
 
-If needed, set frontend API base URL:
-
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+If needed, create `frontend/.env.local` and set the API base URL:
 
 ## Environment Configuration (Backend)
 

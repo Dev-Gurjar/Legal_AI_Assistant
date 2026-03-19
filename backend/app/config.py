@@ -1,7 +1,46 @@
 """Application configuration - loaded from environment variables."""
 
+import re
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from pydantic import field_validator
+
+
+_UNSAFE_CORS_REGEXES = {
+    ".*",
+    "^.*$",
+    "https?://.*",
+    "^https?://.*$",
+    "http://.*",
+    "^http://.*$",
+    "https://.*",
+    "^https://.*$",
+}
+
+
+def is_validated_cors_origin_regex(value: str | None) -> bool:
+    """Return True only for constrained, compilable CORS origin regex values."""
+    if value is None:
+        return True
+
+    pattern = value.strip()
+    if not pattern:
+        return True
+
+    lowered = pattern.lower()
+    if lowered in _UNSAFE_CORS_REGEXES:
+        return False
+
+    # Require full anchoring to avoid partial matches.
+    if not (pattern.startswith("^") and pattern.endswith("$")):
+        return False
+
+    try:
+        re.compile(pattern)
+    except re.error:
+        return False
+
+    return True
 
 
 class Settings(BaseSettings):
@@ -12,8 +51,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     API_VERSION: str = "v1"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
-    CORS_ORIGIN_REGEX: str = r"^http://(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+):3000$"
-
+    CORS_ORIGIN_REGEX: str | None = r"^http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}):3000$"
     # --- Auth / JWT ---
     JWT_SECRET: str = "CHANGE-ME-in-production"
     JWT_ALGORITHM: str = "HS256"
@@ -53,6 +91,24 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
     }
+
+    @field_validator("CORS_ORIGIN_REGEX", mode="before")
+    @classmethod
+    def validate_cors_origin_regex(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        pattern = value.strip()
+        if not pattern:
+            return None
+
+        if not is_validated_cors_origin_regex(pattern):
+            raise ValueError(
+                "CORS_ORIGIN_REGEX is too permissive or invalid. "
+                "Use a fully anchored and constrained pattern."
+            )
+
+        return pattern
 
 
 @lru_cache()

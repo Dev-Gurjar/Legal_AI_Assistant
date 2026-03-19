@@ -25,11 +25,8 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Set backend API URL if needed:
+Set backend API URL in `.env.local` if needed:
 
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
 
 In the chat screen, choose a task from the selector before sending your request.
 

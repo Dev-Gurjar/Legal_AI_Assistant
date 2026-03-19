@@ -3,16 +3,24 @@
 import axios from "axios";
 import { getToken, clearAuth } from "./auth";
 
-const browserHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${browserHost}:8000`;
+function getApiUrl(): string | undefined {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl) return envUrl;
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return undefined;
+}
 
 const api = axios.create({
-  baseURL: API_URL,
   headers: { "Content-Type": "application/json" },
 });
 
 // Attach JWT to every request
 api.interceptors.request.use((config) => {
+  config.baseURL = getApiUrl();
   const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
