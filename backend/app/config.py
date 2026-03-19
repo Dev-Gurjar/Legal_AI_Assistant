@@ -8,10 +8,11 @@ class Settings(BaseSettings):
     """All app settings pulled from env vars / .env file."""
 
     # --- App ---
-    APP_NAME: str = "Construction RAG Chatbot"
+    APP_NAME: str = "RAG Legal Assistant"
     DEBUG: bool = False
     API_VERSION: str = "v1"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGIN_REGEX: str = r"^http://(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+):3000$"
 
     # --- Auth / JWT ---
     JWT_SECRET: str = "CHANGE-ME-in-production"

@@ -1,6 +1,13 @@
-# Construction RAG Chatbot — Backend
+# RAG Legal Assistant — Backend
 
-Multi-tenant RAG chatbot API for US construction companies.
+Multi-tenant RAG assistant API for legal workflows.
+
+## Legal Workflows
+
+- Legal Document Summarization
+- Case Discovery
+- Legal Drafting
+- Legal Query Answering
 
 ## Stack
 
@@ -74,7 +81,7 @@ backend/
 | POST | `/documents/upload` | Upload PDF → parse → embed → store |
 | GET | `/documents` | List tenant's documents |
 | DELETE | `/documents/{id}` | Delete document + vectors |
-| POST | `/chat` | RAG query |
+| POST | `/chat` | Task-aware RAG query (`summarization`, `case_discovery`, `drafting`, `query_answering`) |
 | GET | `/chat/conversations` | List conversations |
 | GET | `/chat/conversations/{id}` | Get conversation messages |
 | GET | `/admin/tenant` | Tenant info |

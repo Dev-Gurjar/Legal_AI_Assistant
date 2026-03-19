@@ -3,7 +3,8 @@
 import axios from "axios";
 import { getToken, clearAuth } from "./auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const browserHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || `http://${browserHost}:8000`;
 
 const api = axios.create({
   baseURL: API_URL,
@@ -112,6 +113,12 @@ export interface ChatResponse {
   conversation_id: string;
 }
 
+export type LegalTask =
+  | "summarization"
+  | "case_discovery"
+  | "drafting"
+  | "query_answering";
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
@@ -133,8 +140,8 @@ export interface ConversationDetail {
 }
 
 export const chatApi = {
-  send: (query: string, conversation_id?: string) =>
-    api.post<ChatResponse>("/chat", { query, conversation_id }),
+  send: (query: string, task: LegalTask, conversation_id?: string) =>
+    api.post<ChatResponse>("/chat", { query, task, conversation_id }),
   conversations: () => api.get<Conversation[]>("/chat/conversations"),
   conversation: (id: string) =>
     api.get<ConversationDetail>(`/chat/conversations/${id}`),

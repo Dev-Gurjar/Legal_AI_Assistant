@@ -138,6 +138,7 @@ async def query(
     tenant_id: str,
     user_id: str,
     query_text: str,
+    task: str = "query_answering",
     conversation_id: str | None = None,
     top_k: int = 5,
 ) -> dict:
@@ -145,11 +146,13 @@ async def query(
 
     Returns ``{"answer": ..., "sources": [...], "conversation_id": ...}``.
     """
+    effective_top_k = 8 if task == "case_discovery" else top_k
+
     # 1. Embed query
     query_vector = embedding_service.embed_query(query_text)
 
     # 2. Retrieve
-    hits = qdrant_service.search(tenant_id, query_vector, top_k=top_k)
+    hits = qdrant_service.search(tenant_id, query_vector, top_k=effective_top_k)
 
     # 3. Conversation history (if continuing)
     history: list[dict] = []
@@ -158,7 +161,22 @@ async def query(
         history = [{"role": m["role"], "content": m["content"]} for m in raw_msgs]
 
     # 4. Generate
-    answer = llm_service.generate_answer(query_text, hits, history or None)
+    if not hits:
+        if task == "summarization":
+            answer = "No relevant legal document segments were found to summarize. Upload a legal document first, then retry summarization."
+        elif task == "case_discovery":
+            answer = "No similar legal cases were found in the indexed corpus for this query. Try broader keywords, parties, statutes, or case facts."
+        elif task == "drafting":
+            answer = "No supporting legal context was found for drafting. Upload relevant contracts/case files or provide more drafting details."
+        else:
+            answer = "I could not find relevant legal context to answer this query. Upload legal documents or refine your question."
+    else:
+        answer = llm_service.generate_answer(
+            query_text,
+            hits,
+            history or None,
+            task=task,
+        )
 
     # 5. Persist conversation + messages
     if not conversation_id:

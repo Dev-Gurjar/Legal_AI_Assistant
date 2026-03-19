@@ -28,6 +28,7 @@ async def chat(body: ChatRequest, user: dict = Depends(get_current_user)):
         tenant_id=tenant_id,
         user_id=user_id,
         query_text=body.query,
+        task=body.task.value,
         conversation_id=body.conversation_id,
     )
     return result

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  HardHat,
+  Scale,
   MessageSquare,
   FileText,
   BarChart3,
@@ -81,8 +81,8 @@ export default function Sidebar() {
             className="flex items-center gap-2"
             onClick={closeSidebar}
           >
-            <HardHat className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">ConstructAI</span>
+            <Scale className="w-6 h-6 text-primary" />
+            <span className="font-bold text-lg">RAG Legal Assistant</span>
           </Link>
           <button
             onClick={closeSidebar}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { HardHat, Loader2 } from "lucide-react";
+import { Scale, Loader2 } from "lucide-react";
 import { authApi } from "@/lib/api";
 import { setAuth } from "@/lib/auth";
 
@@ -34,8 +34,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 justify-center mb-8">
-          <HardHat className="w-8 h-8 text-primary" />
-          <span className="text-2xl font-bold">ConstructAI</span>
+          <Scale className="w-8 h-8 text-primary" />
+          <span className="text-2xl font-bold">RAG Legal Assistant</span>
         </Link>
 
         <div className="bg-background border border-border rounded-xl p-8">
@@ -53,7 +53,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-fg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
-                placeholder="you@company.com"
+                placeholder="you@lawfirm.com"
               />
             </div>
             <div>

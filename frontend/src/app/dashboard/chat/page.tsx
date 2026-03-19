@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import ChatWindow, { ChatMessage } from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
-import { chatApi } from "@/lib/api";
+import { chatApi, type LegalTask } from "@/lib/api";
 import { useChatStore } from "@/lib/store";
 
 export default function ChatPage() {
@@ -38,7 +38,7 @@ export default function ChatPage() {
   }, [activeConversationId]);
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, task: LegalTask) => {
       const userMsg: ChatMessage = {
         id: Date.now().toString(),
         role: "user",
@@ -48,7 +48,11 @@ export default function ChatPage() {
       setLoading(true);
 
       try {
-        const { data } = await chatApi.send(text, activeConversationId ?? undefined);
+        const { data } = await chatApi.send(
+          text,
+          task,
+          activeConversationId ?? undefined
+        );
 
         const assistantMsg: ChatMessage = {
           id: Date.now().toString() + "-a",

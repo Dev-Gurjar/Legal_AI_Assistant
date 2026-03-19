@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Construction RAG Chatbot",
+  title: "RAG Legal Assistant",
   description:
-    "AI-powered document assistant for US construction companies",
+    "AI-powered legal RAG assistant for summarization, case discovery, drafting, and legal query answering",
 };
 
 export default function RootLayout({

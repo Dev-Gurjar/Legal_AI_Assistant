@@ -40,8 +40,8 @@ export default function ChatWindow({ messages, loading }: ChatWindowProps) {
           </div>
           <h2 className="text-xl font-bold mb-2">Start a conversation</h2>
           <p className="text-muted-fg text-sm leading-relaxed">
-            Ask questions about your construction documents — safety protocols,
-            building codes, project specs, and more.
+            Choose a task and ask about legal documents such as contracts,
+            case files, notices, and compliance materials.
           </p>
         </div>
       </div>

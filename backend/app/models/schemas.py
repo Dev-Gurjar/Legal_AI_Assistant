@@ -30,6 +30,13 @@ class MessageRole(str, Enum):
     SYSTEM = "system"
 
 
+class LegalTask(str, Enum):
+    SUMMARIZATION = "summarization"
+    CASE_DISCOVERY = "case_discovery"
+    DRAFTING = "drafting"
+    QUERY_ANSWERING = "query_answering"
+
+
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class TenantCreate(BaseModel):
@@ -84,6 +91,7 @@ class DocumentListResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=4000)
+    task: LegalTask = LegalTask.QUERY_ANSWERING
     conversation_id: str | None = None  # None → new conversation
 
 

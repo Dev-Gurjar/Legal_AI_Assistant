@@ -49,7 +49,7 @@ export default function DocumentsPage() {
             Documents
           </h1>
           <p className="text-sm text-muted-fg mt-1">
-            Upload and manage your construction documents
+            Upload and manage your legal documents
           </p>
         </div>
         <button

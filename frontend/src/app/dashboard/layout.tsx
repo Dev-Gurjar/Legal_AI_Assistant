@@ -44,7 +44,7 @@ export default function DashboardLayout({
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-semibold">ConstructAI</span>
+          <span className="font-semibold">RAG Legal Assistant</span>
         </header>
 
         <main className="flex-1 overflow-y-auto">{children}</main>

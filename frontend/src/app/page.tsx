@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  HardHat,
+  Scale,
   MessageSquare,
   FileText,
   Shield,
@@ -17,8 +17,8 @@ export default function LandingPage() {
       <header className="border-b border-border">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-lg">
-            <HardHat className="w-6 h-6 text-primary" />
-            <span>ConstructAI</span>
+            <Scale className="w-6 h-6 text-primary" />
+            <span>RAG Legal Assistant</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -41,16 +41,16 @@ export default function LandingPage() {
       <section className="flex-1 flex items-center justify-center px-6 py-24">
         <div className="max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 text-sm font-medium text-primary bg-primary-light px-4 py-1.5 rounded-full mb-6">
-            <Zap className="w-4 h-4" /> AI-Powered Document Assistant
+            <Zap className="w-4 h-4" /> AI-Powered Legal Workflow Assistant
           </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight mb-6">
-            Your construction docs,
+            Your legal documents,
             <br />
-            <span className="text-primary">answered instantly.</span>
+            <span className="text-primary">understood and drafted instantly.</span>
           </h1>
           <p className="text-lg text-muted-fg max-w-xl mx-auto mb-10">
-            Upload safety manuals, specs, and project docs. Ask questions in
-            plain English and get accurate answers with source citations — in
+            Upload case files, contracts, and notices. Summarize documents,
+            discover related cases, draft legal text, and get cited answers in
             seconds.
           </p>
           <div className="flex gap-4 justify-center">
@@ -76,18 +76,18 @@ export default function LandingPage() {
           {[
             {
               icon: MessageSquare,
-              title: "Ask Anything",
-              desc: "Chat with your documents like talking to an expert. Get precise answers from safety manuals, specs, and more.",
+              title: "Legal Query Answering",
+              desc: "Ask legal questions in plain language and receive focused answers with supporting context from your files.",
             },
             {
               icon: FileText,
-              title: "Smart Parsing",
-              desc: "Upload PDFs and DOCX files. Our AI extracts and understands tables, diagrams, and complex layouts.",
+              title: "Summarization & Drafting",
+              desc: "Generate concise legal summaries and structured drafts such as notices, petitions, and contract clauses.",
             },
             {
               icon: Shield,
-              title: "Multi-Tenant Secure",
-              desc: "Each company's data is completely isolated. Your documents never mix with other organizations.",
+              title: "Case Discovery",
+              desc: "Retrieve related case context quickly using semantic search over your indexed legal corpus.",
             },
           ].map((f) => (
             <div
@@ -108,8 +108,8 @@ export default function LandingPage() {
 
       {/* ── Footer ───────────────────────────────────────── */}
       <footer className="border-t border-border px-6 py-8 text-center text-sm text-muted-fg">
-        © {new Date().getFullYear()} ConstructAI. Built for US construction
-        companies.
+        © {new Date().getFullYear()} RAG Legal Assistant. Built for legal
+        professionals.
       </footer>
     </div>
   );
