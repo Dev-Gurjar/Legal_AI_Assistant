@@ -51,7 +51,12 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     API_VERSION: str = "v1"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
-    CORS_ORIGIN_REGEX: str | None = r"^http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}):3000$"
+    CORS_ORIGIN_REGEX: str | None = (
+        r"^(https://[a-z0-9-]+\.vercel\.app|"
+        r"http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})"
+        r"(:\d{2,5})?)$"
+    )
     # --- Auth / JWT ---
     JWT_SECRET: str = "CHANGE-ME-in-production"
     JWT_ALGORITHM: str = "HS256"
