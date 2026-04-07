@@ -190,6 +190,43 @@ def global_collection_has_points() -> bool:
     return int(getattr(res, "count", 0) or 0) > 0
 
 
+def global_document_exists(filename: str) -> bool:
+    """Return True if any global points already exist for the filename."""
+    ensure_global_collection()
+    query_filter = Filter(
+        must=[FieldCondition(key="filename", match=MatchValue(value=filename))]
+    )
+
+    client = cast(Any, _client())
+    try:
+        try:
+            res = client.count(
+                collection_name=_global_collection_name(),
+                count_filter=query_filter,
+                exact=False,
+            )
+        except TypeError:
+            res = client.count(
+                collection_name=_global_collection_name(),
+                filter=query_filter,
+                exact=False,
+            )
+        return int(getattr(res, "count", 0) or 0) > 0
+    except Exception:
+        # Fallback for Qdrant deployments that require payload indexes for count filters.
+        try:
+            points, _ = client.scroll(
+                collection_name=_global_collection_name(),
+                scroll_filter=query_filter,
+                limit=1,
+                with_payload=False,
+                with_vectors=False,
+            )
+            return bool(points)
+        except Exception:
+            return False
+
+
 def search_with_global(
     tenant_id: str,
     query_vector: list[float],
