@@ -91,7 +91,7 @@ class DocumentListResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=4000)
-    task: LegalTask = LegalTask.QUERY_ANSWERING
+    task: LegalTask | None = None
     conversation_id: str | None = None  # None → new conversation
 
 
@@ -108,6 +108,23 @@ class ChatResponse(BaseModel):
     answer: str
     sources: list[SourceChunk]
     conversation_id: str
+    detected_task: LegalTask
+
+
+class CorpusIngestRequest(BaseModel):
+    path: str | None = None
+    recursive: bool = True
+    max_files: int | None = Field(default=None, ge=1)
+    force_reingest: bool = False
+
+
+class CorpusIngestResponse(BaseModel):
+    requested_path: str
+    scanned_files: int
+    ingested_count: int
+    skipped_count: int
+    failed_count: int
+    failed_files: list[str] = []
 
 
 class MessageOut(BaseModel):

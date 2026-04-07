@@ -22,9 +22,10 @@ export interface ChatMessage {
 interface ChatWindowProps {
   messages: ChatMessage[];
   loading: boolean;
+  loadingStatus?: string;
 }
 
-export default function ChatWindow({ messages, loading }: ChatWindowProps) {
+export default function ChatWindow({ messages, loading, loadingStatus }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,8 +41,8 @@ export default function ChatWindow({ messages, loading }: ChatWindowProps) {
           </div>
           <h2 className="text-xl font-bold mb-2">Start a conversation</h2>
           <p className="text-muted-fg text-sm leading-relaxed">
-            Choose a task and ask about legal documents such as contracts,
-            case files, notices, and compliance materials.
+            Ask about legal documents such as contracts, case files, notices,
+            and compliance materials. Intent is identified automatically.
           </p>
         </div>
       </div>
@@ -113,6 +114,9 @@ export default function ChatWindow({ messages, loading }: ChatWindowProps) {
                 className="w-2 h-2 rounded-full bg-primary/40 animate-pulse"
                 style={{ animationDelay: "0.4s" }}
               />
+              <span className="ml-2 text-xs text-muted-fg font-medium">
+                {loadingStatus || "Working..."}
+              </span>
             </div>
           </div>
         )}

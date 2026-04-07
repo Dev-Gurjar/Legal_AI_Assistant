@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     QDRANT_URL: str = ""
     QDRANT_API_KEY: str = ""
     QDRANT_COLLECTION_PREFIX: str = "tenant"  # tenant_{id}
+    GLOBAL_SUPREME_COURT_COLLECTION: str = "global_supreme_court_cases"
+    ENABLE_GLOBAL_SUPREME_COURT_SEARCH: bool = True
 
     # --- Cohere (Embeddings) ---
     COHERE_API_KEY: str = ""

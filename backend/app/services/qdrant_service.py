@@ -34,11 +34,29 @@ def _collection_name(tenant_id: str) -> str:
     return f"{s.QDRANT_COLLECTION_PREFIX}_{tenant_id}"
 
 
+def _global_collection_name() -> str:
+    return get_settings().GLOBAL_SUPREME_COURT_COLLECTION
+
+
 # ── Collection management ────────────────────────────────────────────────────
 
 def ensure_collection(tenant_id: str) -> None:
     """Create the tenant collection if it doesn't exist."""
     name = _collection_name(tenant_id)
+    collections = [c.name for c in _client().get_collections().collections]
+    if name not in collections:
+        _client().create_collection(
+            collection_name=name,
+            vectors_config=VectorParams(
+                size=get_settings().EMBEDDING_DIMS,
+                distance=Distance.COSINE,
+            ),
+        )
+
+
+def ensure_global_collection() -> None:
+    """Create the global Supreme Court collection if it doesn't exist."""
+    name = _global_collection_name()
     collections = [c.name for c in _client().get_collections().collections]
     if name not in collections:
         _client().create_collection(
@@ -88,6 +106,44 @@ def upsert_chunks(
     return len(points)
 
 
+def upsert_global_chunks(
+    filename: str,
+    chunks: list[str],
+    vectors: list[list[float]],
+    chunk_metadata: list[dict[str, Any]] | None = None,
+    source_dataset: str | None = None,
+) -> int:
+    """Store chunks in the global Supreme Court collection."""
+    ensure_global_collection()
+
+    metadata_list = chunk_metadata or [{} for _ in chunks]
+    document_id = f"sc::{filename}"
+    points = [
+        PointStruct(
+            id=str(uuid.uuid4()),
+            vector=vec,
+            payload=(
+                {
+                    "document_id": document_id,
+                    "filename": filename,
+                    "text": chunk,
+                    "chunk_index": idx,
+                    "source_dataset": source_dataset,
+                    "is_global": True,
+                }
+                | {
+                    key: value
+                    for key, value in metadata_list[idx].items()
+                    if value is not None and value != ""
+                }
+            ),
+        )
+        for idx, (chunk, vec) in enumerate(zip(chunks, vectors))
+    ]
+    _client().upsert(collection_name=_global_collection_name(), points=points)
+    return len(points)
+
+
 # ── Search ────────────────────────────────────────────────────────────────────
 
 def search(
@@ -125,6 +181,46 @@ def search(
         {**(hit.payload or {}), "score": float(getattr(hit, "score", 0.0))}
         for hit in hits
     ]
+
+
+def global_collection_has_points() -> bool:
+    """Check whether global collection already has indexed documents."""
+    ensure_global_collection()
+    res = _client().count(collection_name=_global_collection_name(), exact=False)
+    return int(getattr(res, "count", 0) or 0) > 0
+
+
+def search_with_global(
+    tenant_id: str,
+    query_vector: list[float],
+    top_k: int = 5,
+) -> list[dict]:
+    """Search tenant collection plus global Supreme Court collection."""
+    tenant_hits = search(tenant_id, query_vector, top_k=top_k)
+
+    ensure_global_collection()
+    client = cast(Any, _client())
+    if hasattr(client, "search"):
+        global_raw = client.search(
+            collection_name=_global_collection_name(),
+            query_vector=query_vector,
+            limit=top_k,
+        )
+    else:
+        result = client.query_points(
+            collection_name=_global_collection_name(),
+            query=query_vector,
+            limit=top_k,
+        )
+        global_raw = getattr(result, "points", [])
+
+    global_hits = [
+        {**(hit.payload or {}), "score": float(getattr(hit, "score", 0.0))}
+        for hit in global_raw
+    ]
+
+    merged = sorted(tenant_hits + global_hits, key=lambda h: float(h.get("score", 0.0)), reverse=True)
+    return merged[:top_k]
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────

@@ -119,6 +119,7 @@ export interface ChatResponse {
   answer: string;
   sources: SourceChunk[];
   conversation_id: string;
+  detected_task: LegalTask;
 }
 
 export type LegalTask =
@@ -148,8 +149,8 @@ export interface ConversationDetail {
 }
 
 export const chatApi = {
-  send: (query: string, task: LegalTask, conversation_id?: string) =>
-    api.post<ChatResponse>("/chat", { query, task, conversation_id }),
+  send: (query: string, conversation_id?: string) =>
+    api.post<ChatResponse>("/chat", { query, conversation_id }),
   conversations: () => api.get<Conversation[]>("/chat/conversations"),
   conversation: (id: string) =>
     api.get<ConversationDetail>(`/chat/conversations/${id}`),
@@ -176,6 +177,12 @@ export interface UsageStats {
 export const adminApi = {
   tenant: () => api.get<Tenant>("/admin/tenant"),
   stats: () => api.get<UsageStats>("/admin/stats"),
+  ingestCorpus: (payload?: {
+    path?: string;
+    recursive?: boolean;
+    max_files?: number;
+    force_reingest?: boolean;
+  }) => api.post("/admin/ingest-corpus", payload || {}),
 };
 
 export default api;

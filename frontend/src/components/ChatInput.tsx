@@ -1,28 +1,39 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Send, Loader2 } from "lucide-react";
-import type { LegalTask } from "@/lib/api";
+import { Send, Loader2, Upload } from "lucide-react";
 
 interface ChatInputProps {
-  onSend: (message: string, task: LegalTask) => void;
+  onSend: (message: string) => void;
+  onUploadCase: (file: File) => void;
   loading: boolean;
 }
 
-export default function ChatInput({ onSend, loading }: ChatInputProps) {
+export default function ChatInput({ onSend, onUploadCase, loading }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const [task, setTask] = useState<LegalTask>("query_answering");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = message.trim();
     if (!trimmed || loading) return;
-    onSend(trimmed, task);
+    onSend(trimmed);
     setMessage("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
+  }
+
+  function handlePickUpload() {
+    uploadRef.current?.click();
+  }
+
+  function onUploadChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || loading) return;
+    onUploadCase(file);
+    e.target.value = "";
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -41,29 +52,25 @@ export default function ChatInput({ onSend, loading }: ChatInputProps) {
 
   return (
     <form onSubmit={handleSubmit} className="border-t border-border bg-surface p-4">
-      <div className="max-w-3xl mx-auto space-y-3">
-        <div className="flex items-center gap-3">
-          <label
-            htmlFor="task"
-            className="text-xs font-semibold uppercase tracking-wide text-muted-fg"
-          >
-            Task
-          </label>
-          <select
-            id="task"
-            value={task}
-            onChange={(e) => setTask(e.target.value as LegalTask)}
-            disabled={loading}
-            className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
-          >
-            <option value="summarization">Document Summarization</option>
-            <option value="case_discovery">Case Discovery</option>
-            <option value="query_answering">Legal Query Answering</option>
-            <option value="drafting">Legal Drafting</option>
-          </select>
-        </div>
-
+      <div className="max-w-3xl mx-auto">
         <div className="flex gap-3 items-end">
+        <input
+          ref={uploadRef}
+          type="file"
+          accept=".pdf,.docx"
+          onChange={onUploadChange}
+          className="hidden"
+          disabled={loading}
+        />
+        <button
+          type="button"
+          onClick={handlePickUpload}
+          disabled={loading}
+          className="p-3 rounded-xl border border-border bg-background text-foreground hover:bg-muted disabled:opacity-40 transition shrink-0"
+          title="Upload case file and summarize"
+        >
+          <Upload className="w-5 h-5" />
+        </button>
         <textarea
           ref={textareaRef}
           value={message}

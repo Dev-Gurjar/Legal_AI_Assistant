@@ -10,6 +10,7 @@ from typing import Any, cast
 from groq import Groq
 
 from app.config import get_settings
+from app.services.legal_references import INDIAN_DRAFTING_REFERENCE
 
 BASE_SYSTEM_PROMPT = """You are a legal RAG assistant.
 Use only the provided context documents.
@@ -39,6 +40,58 @@ TASK_INSTRUCTIONS: dict[str, str] = {
 }
 
 
+INTENT_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "summarization": (
+        "summarize",
+        "summary",
+        "gist",
+        "short note",
+        "brief",
+    ),
+    "case_discovery": (
+        "similar case",
+        "precedent",
+        "case law",
+        "judgment like",
+        "supreme court",
+        "high court",
+    ),
+    "drafting": (
+        "draft",
+        "prepare notice",
+        "petition",
+        "agreement",
+        "legal notice",
+        "affidavit",
+        "reply",
+        "plaint",
+    ),
+    "query_answering": (
+        "what",
+        "why",
+        "how",
+        "is it",
+        "can i",
+    ),
+}
+
+
+def detect_intent(query: str) -> str:
+    """Classify user intent into one of the legal workflow tasks."""
+    text = (query or "").lower()
+    if not text:
+        return "query_answering"
+
+    scores = {task: 0 for task in INTENT_KEYWORDS}
+    for task, words in INTENT_KEYWORDS.items():
+        for w in words:
+            if w in text:
+                scores[task] += 1
+
+    best = max(scores.items(), key=lambda item: item[1])
+    return best[0] if best[1] > 0 else "query_answering"
+
+
 def _client() -> Groq:
     return Groq(api_key=get_settings().GROQ_API_KEY)
 
@@ -65,6 +118,8 @@ def generate_answer(
 
     # Assemble messages
     task_instruction = TASK_INSTRUCTIONS.get(task, TASK_INSTRUCTIONS["query_answering"])
+    if task == "drafting":
+        task_instruction = f"{task_instruction}\n\n{INDIAN_DRAFTING_REFERENCE}"
     messages: list[dict] = [
         {"role": "system", "content": f"{BASE_SYSTEM_PROMPT}\n\n{task_instruction}"}
     ]

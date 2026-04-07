@@ -123,6 +123,7 @@ async def register(body: UserRegister):
         _raise_db_unavailable(exc)
 
     token = _create_token(user)
+
     return TokenResponse(
         access_token=token,
         user=UserOut(
@@ -156,6 +157,7 @@ async def login(body: UserLogin):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User is not linked to any tenant")
 
     token = _create_token(user)
+
     return TokenResponse(
         access_token=token,
         user=UserOut(

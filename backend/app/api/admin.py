@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.auth import get_current_user
 from app.db.supabase import get_tenant, get_tenant_stats
-from app.models.schemas import TenantOut, UsageStats
+from app.models.schemas import (
+    TenantOut,
+    UsageStats,
+    CorpusIngestRequest,
+    CorpusIngestResponse,
+)
+from app.services.rag_service import ingest_local_corpus
 
 router = APIRouter()
 
@@ -39,3 +45,18 @@ async def get_stats(user: dict = Depends(get_current_user)):
         total_messages=stats.get("total_messages", 0),
         queries_today=0,   # TODO: track daily
     )
+
+
+@router.post("/ingest-corpus", response_model=CorpusIngestResponse)
+async def ingest_corpus(body: CorpusIngestRequest, user: dict = Depends(get_current_user)):
+    """Bulk ingest local corpus files (PDF/DOCX) into tenant Qdrant index."""
+    admin = _require_admin(user)
+    result = await ingest_local_corpus(
+        tenant_id=admin["tenant_id"],
+        user_id=admin["sub"],
+        corpus_path=body.path or "data",
+        recursive=body.recursive,
+        max_files=body.max_files,
+        force_reingest=body.force_reingest,
+    )
+    return result

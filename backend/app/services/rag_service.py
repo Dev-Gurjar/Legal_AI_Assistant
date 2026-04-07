@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 import uuid
+from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 from fastapi import UploadFile
@@ -24,10 +26,12 @@ from app.db.supabase import (
     create_conversation,
     add_message,
     get_messages,
+    get_documents,
 )
 
 
 IMAGE_MD_RE = re.compile(r"!\[(?P<alt>[^\]]*)\]\((?P<url>[^)\s]+)(?:\s+\"[^\"]*\")?\)")
+SUPPORTED_LOCAL_EXTS = {".pdf", ".docx"}
 
 
 def _chunk_image_metadata(chunk: str) -> dict[str, str]:
@@ -132,13 +136,61 @@ async def ingest_document(
         raise
 
 
+async def ingest_local_corpus(
+    tenant_id: str,
+    user_id: str,
+    corpus_path: str,
+    recursive: bool = True,
+    max_files: int | None = None,
+    force_reingest: bool = False,
+) -> dict[str, Any]:
+    """Ingest local PDF/DOCX corpus from disk into the tenant index."""
+    root = Path(corpus_path)
+    if not root.exists() or not root.is_dir():
+        raise ValueError(f"Invalid corpus path: {corpus_path}")
+
+    existing_docs = get_documents(tenant_id)
+    existing_filenames = {str(d.get("filename", "")).lower() for d in existing_docs}
+
+    iterator = root.rglob("*") if recursive else root.glob("*")
+    candidates = [p for p in iterator if p.is_file() and p.suffix.lower() in SUPPORTED_LOCAL_EXTS]
+    candidates = sorted(candidates, key=lambda p: p.name.lower())
+    if max_files is not None:
+        candidates = candidates[:max_files]
+
+    ingested_count = 0
+    skipped_count = 0
+    failed_files: list[str] = []
+
+    for path in candidates:
+        if not force_reingest and path.name.lower() in existing_filenames:
+            skipped_count += 1
+            continue
+
+        try:
+            upload = UploadFile(filename=path.name, file=BytesIO(path.read_bytes()))
+            await ingest_document(tenant_id=tenant_id, user_id=user_id, file=upload)
+            ingested_count += 1
+        except Exception:
+            failed_files.append(path.name)
+
+    return {
+        "requested_path": str(root),
+        "scanned_files": len(candidates),
+        "ingested_count": ingested_count,
+        "skipped_count": skipped_count,
+        "failed_count": len(failed_files),
+        "failed_files": failed_files,
+    }
+
+
 # ─── Query Pipeline ──────────────────────────────────────────────────────────
 
 async def query(
     tenant_id: str,
     user_id: str,
     query_text: str,
-    task: str = "query_answering",
+    task: str | None = None,
     conversation_id: str | None = None,
     top_k: int = 5,
 ) -> dict:
@@ -146,13 +198,18 @@ async def query(
 
     Returns ``{"answer": ..., "sources": [...], "conversation_id": ...}``.
     """
-    effective_top_k = 8 if task == "case_discovery" else top_k
+    detected_task = task or llm_service.detect_intent(query_text)
+    effective_top_k = 8 if detected_task == "case_discovery" else top_k
+    settings = get_settings()
 
     # 1. Embed query
     query_vector = embedding_service.embed_query(query_text)
 
     # 2. Retrieve
-    hits = qdrant_service.search(tenant_id, query_vector, top_k=effective_top_k)
+    if settings.ENABLE_GLOBAL_SUPREME_COURT_SEARCH:
+        hits = qdrant_service.search_with_global(tenant_id, query_vector, top_k=effective_top_k)
+    else:
+        hits = qdrant_service.search(tenant_id, query_vector, top_k=effective_top_k)
 
     # 3. Conversation history (if continuing)
     history: list[dict] = []
@@ -162,11 +219,11 @@ async def query(
 
     # 4. Generate
     if not hits:
-        if task == "summarization":
+        if detected_task == "summarization":
             answer = "No relevant legal document segments were found to summarize. Upload a legal document first, then retry summarization."
-        elif task == "case_discovery":
+        elif detected_task == "case_discovery":
             answer = "No similar legal cases were found in the indexed corpus for this query. Try broader keywords, parties, statutes, or case facts."
-        elif task == "drafting":
+        elif detected_task == "drafting":
             answer = "No supporting legal context was found for drafting. Upload relevant contracts/case files or provide more drafting details."
         else:
             answer = "I could not find relevant legal context to answer this query. Upload legal documents or refine your question."
@@ -175,7 +232,7 @@ async def query(
             query_text,
             hits,
             history or None,
-            task=task,
+            task=detected_task,
         )
 
     # 5. Persist conversation + messages
@@ -205,4 +262,5 @@ async def query(
         "answer": answer,
         "sources": sources_payload,
         "conversation_id": conversation_id,
+        "detected_task": detected_task,
     }
