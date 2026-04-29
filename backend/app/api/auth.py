@@ -1,16 +1,15 @@
 """Authentication endpoints — register & login with JWT."""
 
-from __future__ import annotations
-
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from postgrest.exceptions import APIError
 
 from app.config import get_settings
+from app.services.rate_limit import limiter
 from app.db.supabase import create_tenant, create_user, get_user_by_email
 from app.models.schemas import (
     TokenResponse,
@@ -75,7 +74,8 @@ def get_current_user(
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(body: UserRegister):
+@limiter.limit(get_settings().RATE_LIMIT_AUTH)
+async def register(request: Request, body: UserRegister):
     """Create a new tenant + admin user and return a JWT."""
     # Check duplicate email
     existing_user: dict | None = None
@@ -137,7 +137,8 @@ async def register(body: UserRegister):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: UserLogin):
+@limiter.limit(get_settings().RATE_LIMIT_AUTH)
+async def login(request: Request, body: UserLogin):
     """Authenticate and return a JWT."""
     user: dict | None = None
     try:

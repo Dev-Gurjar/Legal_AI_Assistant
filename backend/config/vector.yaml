@@ -1,0 +1,8 @@
+default: qdrant
+providers:
+  qdrant:
+    type: qdrant
+  chroma:
+    type: chroma
+  pgvector:
+    type: pgvector

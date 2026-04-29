@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { Scale, Loader2 } from "lucide-react";
-import { authApi } from "@/lib/api";
+import { authApi, getApiError } from "@/lib/api";
 import { setAuth } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -23,7 +23,7 @@ export default function LoginPage() {
       toast.success("Welcome back!");
       router.push("/dashboard/chat");
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Login failed");
+      toast.error(getApiError(err, "Login failed"));
     } finally {
       setLoading(false);
     }

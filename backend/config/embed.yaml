@@ -1,0 +1,31 @@
+default: bge_m3
+failover:
+  - bge_m3
+  - e5
+  - jina
+  - indicbert
+  - voyage
+  - openai
+  - cohere
+providers:
+  bge_m3:
+    type: sentence_transformers
+    model: BAAI/bge-m3
+  e5:
+    type: sentence_transformers
+    model: intfloat/multilingual-e5-large-instruct
+  jina:
+    type: jina
+    model: jina-embeddings-v3
+  indicbert:
+    type: sentence_transformers
+    model: ai4bharat/IndicBERTv2-MLM-only
+  voyage:
+    type: voyage
+    model: voyage-law-2
+  openai:
+    type: openai
+    model: text-embedding-3-large
+  cohere:
+    type: cohere
+    model: embed-english-v3.0

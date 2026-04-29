@@ -1,7 +1,7 @@
 /** Zustand stores for global client state. */
 
 import { create } from "zustand";
-import type { Conversation, Message, SourceChunk } from "./api";
+import type { Conversation, Message, SourceChunk, LanguagePreference, Persona } from "./api";
 
 // ─── Chat Store ────────────────────────────────────────────────
 
@@ -50,12 +50,20 @@ export const useChatStore = create<ChatState>((set) => ({
 
 interface UIState {
   sidebarOpen: boolean;
+  persona: Persona;
+  language: LanguagePreference;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setPersona: (persona: Persona) => void;
+  setLanguage: (language: LanguagePreference) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
   sidebarOpen: true,
+  persona: "practitioner",
+  language: "auto",
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setPersona: (persona) => set({ persona }),
+  setLanguage: (language) => set({ language }),
 }));

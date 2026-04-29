@@ -8,7 +8,7 @@ function getApiUrl(): string | undefined {
   if (envUrl) return envUrl;
 
   if (typeof window !== "undefined") {
-    return window.location.origin;
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
   }
 
   return undefined;
@@ -115,9 +115,20 @@ export interface SourceChunk {
   image_caption?: string | null;
 }
 
+export interface Citation {
+  document_id: string;
+  filename: string;
+  chunk_id: string;
+  verbatim_quote: string;
+  score: number;
+  source_url?: string | null;
+  last_verified?: string | null;
+}
+
 export interface ChatResponse {
   answer: string;
   sources: SourceChunk[];
+  citations: Citation[];
   conversation_id: string;
   detected_task: LegalTask;
 }
@@ -127,6 +138,10 @@ export type LegalTask =
   | "case_discovery"
   | "drafting"
   | "query_answering";
+
+export type LanguagePreference = "auto" | "en" | "hi" | "bilingual";
+
+export type Persona = "practitioner" | "learner";
 
 export interface Message {
   id: string;
@@ -149,8 +164,20 @@ export interface ConversationDetail {
 }
 
 export const chatApi = {
-  send: (query: string, conversation_id?: string) =>
-    api.post<ChatResponse>("/chat", { query, conversation_id }),
+  send: (
+    query: string,
+    task: LegalTask,
+    conversation_id?: string,
+    language?: LanguagePreference,
+    persona?: Persona,
+  ) =>
+    api.post<ChatResponse>("/chat", {
+      query,
+      task,
+      conversation_id,
+      language,
+      persona,
+    }),
   conversations: () => api.get<Conversation[]>("/chat/conversations"),
   conversation: (id: string) =>
     api.get<ConversationDetail>(`/chat/conversations/${id}`),
@@ -174,6 +201,138 @@ export interface UsageStats {
   queries_today: number;
 }
 
+export interface CaseTimeEstimateResponse {
+  case_type: string;
+  court: string;
+  median_days: number;
+  p25_days: number;
+  p75_days: number;
+  sample_size: number;
+  histogram: { range: string; count: number }[];
+  data_source: string;
+  warning?: string | null;
+}
+
+export interface CostEstimateResponse {
+  document_type: string;
+  state: string;
+  transaction_value: number;
+  total_fee: number;
+  base_fee: number;
+  rate_percent: number;
+  max_fee: number;
+  source: string;
+}
+
+export interface MotorAccidentCompResponse {
+  age: number;
+  monthly_income: number;
+  dependents: number;
+  multiplier: number;
+  loss_of_dependency: number;
+  conventional_heads: number;
+  total_compensation: number;
+  reference: string;
+  notes: string;
+}
+
+export interface GratuityResponse {
+  years_of_service: number;
+  last_drawn_salary: number;
+  gratuity_amount: number;
+  reference: string;
+}
+
+export interface AlimonyResponse {
+  monthly_income: number;
+  monthly_expenses: number;
+  estimated_monthly_support: number;
+  reference: string;
+}
+
+export interface BailPredictResponse {
+  offense_type: string;
+  likelihood_score: number;
+  likelihood_band: string;
+  key_factors: string[];
+  cautions: string[];
+  reference: string;
+}
+
+export interface ClientQaItem {
+  question: string;
+  answer: string;
+  tags: string[];
+  reference?: string | null;
+  score: number;
+}
+
+export interface ClientQaResponse {
+  query: string;
+  results: ClientQaItem[];
+  data_source: string;
+}
+
+export interface InternModuleSummary {
+  module_id: string;
+  title: string;
+  summary: string;
+}
+
+export interface InternModulesResponse {
+  modules: InternModuleSummary[];
+}
+
+export interface InternKeyCase {
+  case: string;
+  principle: string;
+}
+
+export interface InternLessonResponse {
+  module_id: string;
+  title: string;
+  summary: string;
+  checklist: string[];
+  key_cases: InternKeyCase[];
+  sample_tasks: string[];
+  quiz: { question: string; options: string[] }[];
+}
+
+export interface InternQuizResponse {
+  module_id: string;
+  score: number;
+  total_questions: number;
+  correct_indices: number[];
+  explanations: string[];
+}
+
+export interface CaseFlowStep {
+  step: number;
+  title: string;
+  description: string;
+  typical_duration: string;
+}
+
+export interface CaseFlowResponse {
+  case_type: string;
+  court_level?: string | null;
+  state?: string | null;
+  steps: CaseFlowStep[];
+  references: string[];
+  warning?: string | null;
+}
+
+export interface DraftTemplateResponse {
+  template_id: string;
+  title: string;
+  language: string;
+  content?: string | null;
+  content_en?: string | null;
+  content_hi?: string | null;
+  placeholders: string[];
+  generated: boolean;
+}
+
 export const adminApi = {
   tenant: () => api.get<Tenant>("/admin/tenant"),
   stats: () => api.get<UsageStats>("/admin/stats"),
@@ -184,5 +343,57 @@ export const adminApi = {
     force_reingest?: boolean;
   }) => api.post("/admin/ingest-corpus", payload || {}),
 };
+
+export const featureApi = {
+  caseTimeEstimate: (payload: { case_type: string; court: string }) =>
+    api.post<CaseTimeEstimateResponse>("/features/case-time", payload),
+  costEstimate: (payload: { document_type: string; state: string; transaction_value: number }) =>
+    api.post<CostEstimateResponse>("/features/cost-estimate", payload),
+  motorAccidentComp: (payload: { age: number; monthly_income: number; dependents: number; future_prospects_percent: number; injury_type: string }) =>
+    api.post<MotorAccidentCompResponse>("/features/compensation/motor-accident", payload),
+  gratuity: (payload: { years_of_service: number; last_drawn_salary: number }) =>
+    api.post<GratuityResponse>("/features/compensation/gratuity", payload),
+  alimony: (payload: { monthly_income: number; monthly_expenses: number }) =>
+    api.post<AlimonyResponse>("/features/compensation/alimony", payload),
+  bailPredict: (payload: {
+    offense_type: string;
+    max_punishment_years: number;
+    is_bailable: boolean;
+    has_prior_conviction: boolean;
+    flight_risk: string;
+    evidence_strength: string;
+    accused_age: number;
+    has_medical_grounds: boolean;
+    is_woman_or_child: boolean;
+    custody_days: number;
+  }) => api.post<BailPredictResponse>("/features/bail/predict", payload),
+  clientQa: (payload: { question: string; top_k?: number }) =>
+    api.post<ClientQaResponse>("/features/client-qa", payload),
+  internModules: () => api.get<InternModulesResponse>("/features/intern/modules"),
+  internLesson: (payload: { module_id: string }) =>
+    api.post<InternLessonResponse>("/features/intern/lesson", payload),
+  internQuiz: (payload: { module_id: string; answers: number[] }) =>
+    api.post<InternQuizResponse>("/features/intern/quiz", payload),
+  caseFlow: (payload: { case_type: string; court_level?: string; state?: string }) =>
+    api.post<CaseFlowResponse>("/features/case-flow", payload),
+  draftTemplate: (payload: { template_id: string; language: string }) =>
+    api.post<DraftTemplateResponse>("/features/drafting/template", payload),
+  draftExport: (payload: { title: string; content: string; format?: string }) =>
+    api.post("/features/drafting/export", payload, { responseType: "blob" }),
+};
+
+/** Safely extract a readable message from an Axios error response. */
+export function getApiError(err: unknown, fallback: string): string {
+  if (!err || typeof err !== "object") return fallback;
+  const detail = (err as any).response?.data?.detail;
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: any) => (typeof d === "object" ? d.msg ?? JSON.stringify(d) : String(d)))
+      .join("; ");
+  }
+  return fallback;
+}
 
 export default api;

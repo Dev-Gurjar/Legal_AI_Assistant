@@ -16,20 +16,23 @@ import {
 import clsx from "clsx";
 import { clearAuth, getUser } from "@/lib/auth";
 import { useChatStore, useUIStore } from "@/lib/store";
+import { t, uiLocaleFromLanguage } from "@/lib/i18n";
 import { chatApi } from "@/lib/api";
 
 const navItems = [
-  { label: "Chat", href: "/dashboard/chat", icon: MessageSquare },
-  { label: "Documents", href: "/dashboard/documents", icon: FileText },
-  { label: "Admin", href: "/dashboard/admin", icon: BarChart3 },
-];
+  { labelKey: "nav_chat", href: "/dashboard/chat", icon: MessageSquare },
+  { labelKey: "nav_documents", href: "/dashboard/documents", icon: FileText },
+  { labelKey: "nav_tools", href: "/dashboard/features", icon: Scale },
+  { labelKey: "nav_admin", href: "/dashboard/admin", icon: BarChart3 },
+] as const;
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [mounted, setMounted] = useState(false);
-  const { sidebarOpen, toggleSidebar, setSidebarOpen } = useUIStore();
+  const { sidebarOpen, toggleSidebar, setSidebarOpen, language } = useUIStore();
+  const locale = uiLocaleFromLanguage(language);
   const { conversations, setConversations, setActiveConversation } =
     useChatStore();
 
@@ -109,7 +112,7 @@ export default function Sidebar() {
                 )}
               >
                 <item.icon className="w-4.5 h-4.5" />
-                {item.label}
+                {t(locale, item.labelKey)}
               </Link>
             );
           })}
@@ -120,12 +123,12 @@ export default function Sidebar() {
           <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-fg">
-                Conversations
+                {t(locale, "conversations")}
               </span>
               <button
                 onClick={startNewChat}
                 className="p-1 rounded hover:bg-muted transition"
-                title="New chat"
+                title={t(locale, "new_chat")}
               >
                 <Plus className="w-4 h-4 text-muted-fg" />
               </button>
@@ -133,7 +136,7 @@ export default function Sidebar() {
 
             {conversations.length === 0 && (
               <p className="text-xs text-muted-fg py-2">
-                No conversations yet
+                {t(locale, "no_conversations")}
               </p>
             )}
 
@@ -176,7 +179,7 @@ export default function Sidebar() {
             <button
               onClick={handleLogout}
               className="p-1.5 rounded hover:bg-muted transition"
-              title="Sign out"
+              title={t(locale, "sign_out")}
             >
               <LogOut className="w-4 h-4 text-muted-fg" />
             </button>

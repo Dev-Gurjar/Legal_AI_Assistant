@@ -1,0 +1,16 @@
+default: bhashini
+failover:
+  - bhashini
+  - indictrans2
+  - nllb
+  - google
+providers:
+  bhashini:
+    type: bhashini
+    payload_style: simple
+  indictrans2:
+    type: indictrans2
+  nllb:
+    type: nllb
+  google:
+    type: google

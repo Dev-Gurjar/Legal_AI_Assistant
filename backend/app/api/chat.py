@@ -1,10 +1,10 @@
 """Chat / RAG query endpoints."""
 
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.auth import get_current_user
+from app.config import get_settings
+from app.services.rate_limit import limiter
 from app.db.supabase import get_conversations, get_conversation, get_messages, get_message_count
 from app.models.schemas import (
     ChatRequest,
@@ -19,7 +19,8 @@ router = APIRouter()
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(body: ChatRequest, user: dict = Depends(get_current_user)):
+@limiter.limit(get_settings().RATE_LIMIT_CHAT)
+async def chat(request: Request, body: ChatRequest, user: dict = Depends(get_current_user)):
     """Ask a question — runs the full RAG pipeline."""
     tenant_id = user["tenant_id"]
     user_id = user["sub"]
@@ -30,6 +31,8 @@ async def chat(body: ChatRequest, user: dict = Depends(get_current_user)):
         query_text=body.query,
         task=body.task.value if body.task else None,
         conversation_id=body.conversation_id,
+        language=body.language.value if body.language else None,
+        persona=body.persona.value if body.persona else None,
     )
     return result
 

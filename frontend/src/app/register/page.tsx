@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { Scale, Loader2 } from "lucide-react";
-import { authApi } from "@/lib/api";
+import { authApi, getApiError } from "@/lib/api";
 import { setAuth } from "@/lib/auth";
 
 export default function RegisterPage() {
@@ -52,7 +52,7 @@ export default function RegisterPage() {
       toast.success("Account created! Welcome aboard.");
       router.push("/dashboard/chat");
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Registration failed");
+      toast.error(getApiError(err, "Registration failed"));
     } finally {
       setLoading(false);
     }

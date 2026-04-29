@@ -1,6 +1,7 @@
 """Application configuration - loaded from environment variables."""
 
 import re
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from pydantic import field_validator
@@ -50,6 +51,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "RAG Legal Assistant"
     DEBUG: bool = False
     API_VERSION: str = "v1"
+    ENVIRONMENT: str = "local"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     CORS_ORIGIN_REGEX: str | None = (
         r"^(https://[a-z0-9-]+\.vercel\.app|"
@@ -84,6 +86,37 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 2048
     LLM_TEMPERATURE: float = 0.3
 
+    # --- Bhashini / Translation ---
+    BHASHINI_API_URL: str = ""
+    BHASHINI_API_KEY: str = ""
+    BHASHINI_SERVICE_ID: str = ""
+    BHASHINI_API_KEY_HEADER: str = "Authorization"
+    BHASHINI_API_KEY_PREFIX: str = "Bearer "
+    BHASHINI_PAYLOAD_STYLE: str = "simple"
+    BHASHINI_TIMEOUT_SECONDS: int = 20
+
+    # --- Reranker ---
+    RERANK_MIN_SCORE: float = 0.5
+
+    # --- Rate limiting ---
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: str = "120/minute"
+    RATE_LIMIT_AUTH: str = "20/minute"
+    RATE_LIMIT_CHAT: str = "30/minute"
+    RATE_LIMIT_UPLOAD: str = "10/minute"
+    RATE_LIMIT_USE_REDIS: bool = True
+    REDIS_URL: str = ""
+
+    # --- Observability (Sentry) ---
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.05
+
+    # --- Hybrid Search (Dense + BM25 + RRF) ---
+    HYBRID_SEARCH_ENABLED: bool = True
+    HYBRID_BM25_ENABLED: bool = True
+    HYBRID_CANDIDATE_MULTIPLIER: int = 5
+    HYBRID_RRF_K: int = 60
+
     # --- Kaggle Docling ---
     DOCLING_URL: str = ""  # ngrok URL to Kaggle notebook
     DOCLING_API_KEY: str = ""
@@ -92,6 +125,9 @@ class Settings(BaseSettings):
     # --- Chunking ---
     CHUNK_SIZE: int = 512
     CHUNK_OVERLAP: int = 64
+
+    # --- Feature Data ---
+    FEATURE_DATA_DIR: str = str(Path(__file__).resolve().parents[2] / "data")
 
     model_config = {
         "env_file": ".env",

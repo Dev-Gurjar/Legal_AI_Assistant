@@ -37,6 +37,18 @@ class LegalTask(str, Enum):
     QUERY_ANSWERING = "query_answering"
 
 
+class LanguagePreference(str, Enum):
+    AUTO = "auto"
+    EN = "en"
+    HI = "hi"
+    BILINGUAL = "bilingual"
+
+
+class Persona(str, Enum):
+    PRACTITIONER = "practitioner"
+    LEARNER = "learner"
+
+
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class TenantCreate(BaseModel):
@@ -93,6 +105,8 @@ class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=4000)
     task: LegalTask | None = None
     conversation_id: str | None = None  # None → new conversation
+    language: LanguagePreference | None = None
+    persona: Persona | None = None
 
 
 class SourceChunk(BaseModel):
@@ -104,9 +118,20 @@ class SourceChunk(BaseModel):
     image_caption: str | None = None
 
 
+class Citation(BaseModel):
+    document_id: str
+    filename: str
+    chunk_id: str
+    verbatim_quote: str
+    score: float
+    source_url: str | None = None
+    last_verified: datetime | None = None
+
+
 class ChatResponse(BaseModel):
     answer: str
     sources: list[SourceChunk]
+    citations: list[Citation]
     conversation_id: str
     detected_task: LegalTask
 

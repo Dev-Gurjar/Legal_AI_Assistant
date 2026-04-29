@@ -1,0 +1,11 @@
+default: bge_reranker_v2_m3
+failover:
+  - bge_reranker_v2_m3
+  - cohere
+providers:
+  bge_reranker_v2_m3:
+    type: sentence_transformers_crossencoder
+    model: BAAI/bge-reranker-v2-m3
+  cohere:
+    type: cohere
+    model: rerank-english-v3.0

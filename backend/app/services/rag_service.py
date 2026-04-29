@@ -17,9 +17,11 @@ from app.config import get_settings
 from app.services import (
     docling_client,
     embedding_service,
-    qdrant_service,
     llm_service,
 )
+from app.services.ai import rerank_hits, detect_language, translate_text
+from app.services.ai.hybrid_search import hybrid_search
+from app.services.ai import vector_router
 from app.db.supabase import (
     insert_document,
     update_document,
@@ -111,7 +113,7 @@ async def ingest_document(
         vectors = embedding_service.embed_texts(chunks)
 
         # 6. Store in Qdrant
-        count = qdrant_service.upsert_chunks(
+        count = vector_router.upsert_chunks(
             tenant_id=tenant_id,
             document_id=doc_id,
             filename=file.filename or "untitled.pdf",
@@ -192,6 +194,8 @@ async def query(
     query_text: str,
     task: str | None = None,
     conversation_id: str | None = None,
+    language: str | None = None,
+    persona: str | None = None,
     top_k: int = 5,
 ) -> dict:
     """Full RAG query: embed query → search → generate → persist.
@@ -202,14 +206,45 @@ async def query(
     effective_top_k = 8 if detected_task == "case_discovery" else top_k
     settings = get_settings()
 
+    source_lang = detect_language(query_text)
+    language_pref = (language or "auto").lower()
+    bilingual = language_pref == "bilingual"
+    if language_pref == "en":
+        target_lang = "en"
+    elif language_pref == "hi":
+        target_lang = "hi"
+    elif bilingual:
+        target_lang = "en"
+    else:
+        target_lang = source_lang
+    query_for_retrieval = (
+        translate_text(query_text, source_lang, "en")
+        if source_lang != "en"
+        else query_text
+    )
+
     # 1. Embed query
-    query_vector = embedding_service.embed_query(query_text)
+    query_vector = embedding_service.embed_query(query_for_retrieval)
 
     # 2. Retrieve
-    if settings.ENABLE_GLOBAL_SUPREME_COURT_SEARCH:
-        hits = qdrant_service.search_with_global(tenant_id, query_vector, top_k=effective_top_k)
+    if settings.HYBRID_SEARCH_ENABLED:
+        hits = hybrid_search(
+            tenant_id=tenant_id,
+            query_text=query_for_retrieval,
+            query_vector=query_vector,
+            top_k=effective_top_k,
+            use_global=settings.ENABLE_GLOBAL_SUPREME_COURT_SEARCH,
+        )
+    elif settings.ENABLE_GLOBAL_SUPREME_COURT_SEARCH:
+        hits = vector_router.search_with_global(tenant_id, query_vector, top_k=effective_top_k)
     else:
-        hits = qdrant_service.search(tenant_id, query_vector, top_k=effective_top_k)
+        hits = vector_router.search(tenant_id, query_vector, top_k=effective_top_k)
+
+    hits = rerank_hits(query_for_retrieval, hits)
+
+    best_score = 0.0
+    if hits:
+        best_score = float(hits[0].get("rerank_score", hits[0].get("score", 0.0)))
 
     # 3. Conversation history (if continuing)
     history: list[dict] = []
@@ -218,7 +253,7 @@ async def query(
         history = [{"role": m["role"], "content": m["content"]} for m in raw_msgs]
 
     # 4. Generate
-    if not hits:
+    if not hits or (hits and hits[0].get("rerank_score") is not None and best_score < settings.RERANK_MIN_SCORE):
         if detected_task == "summarization":
             answer = "No relevant legal document segments were found to summarize. Upload a legal document first, then retry summarization."
         elif detected_task == "case_discovery":
@@ -227,13 +262,35 @@ async def query(
             answer = "No supporting legal context was found for drafting. Upload relevant contracts/case files or provide more drafting details."
         else:
             answer = "I could not find relevant legal context to answer this query. Upload legal documents or refine your question."
+        citations: list[dict] = []
     else:
-        answer = llm_service.generate_answer(
-            query_text,
-            hits,
-            history or None,
-            task=detected_task,
+        try:
+            answer, citations = llm_service.generate_answer_with_citations(
+                query_text,
+                hits,
+                history or None,
+                task=detected_task,
+                persona=persona,
+            )
+        except Exception:
+            answer = "I don't have a verified source for this. Please consult a qualified advocate."
+            citations = []
+
+    disclaimer = "AI-generated. Not legal advice. Verify with a qualified advocate."
+    if bilingual:
+        disclaimer_hi = translate_text(disclaimer, "en", "hi")
+        answer_hi = translate_text(answer, "en", "hi")
+        answer = (
+            "English:\n"
+            f"{disclaimer}\n\n{answer}\n\n"
+            "Hindi:\n"
+            f"{disclaimer_hi}\n\n{answer_hi}"
         )
+    else:
+        if target_lang != "en":
+            answer = translate_text(answer, "en", target_lang)
+            disclaimer = translate_text(disclaimer, "en", target_lang)
+        answer = f"{disclaimer}\n\n{answer}"
 
     # 5. Persist conversation + messages
     if not conversation_id:
@@ -261,6 +318,7 @@ async def query(
     return {
         "answer": answer,
         "sources": sources_payload,
+        "citations": citations,
         "conversation_id": conversation_id,
         "detected_task": detected_task,
     }

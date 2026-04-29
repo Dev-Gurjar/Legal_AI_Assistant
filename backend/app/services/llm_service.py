@@ -1,15 +1,13 @@
-"""Groq LLM service.
-
-Calls Groq's hosted Llama 3.1 70B model for answer generation.
-"""
+"""LLM service routed through provider-agnostic LLM router."""
 
 from __future__ import annotations
 
+import json
 from typing import Any, cast
 
-from groq import Groq
+from pydantic import BaseModel, ValidationError
 
-from app.config import get_settings
+from app.services.ai import chat_completion
 from app.services.legal_references import INDIAN_DRAFTING_REFERENCE
 
 BASE_SYSTEM_PROMPT = """You are a legal RAG assistant.
@@ -38,6 +36,34 @@ TASK_INSTRUCTIONS: dict[str, str] = {
         "Answer directly, then provide supporting legal context from sources."
     ),
 }
+
+PERSONA_INSTRUCTIONS: dict[str, str] = {
+    "practitioner": (
+        "Persona: Practitioner. Be concise and action-oriented. "
+        "Highlight risks, next steps, and practical implications. "
+        "Avoid lengthy teaching unless asked."
+    ),
+    "learner": (
+        "Persona: Learner. Explain concepts step-by-step, define legal terms, "
+        "and include brief examples or checklists where helpful."
+    ),
+}
+
+
+def _persona_instruction(persona: str | None) -> str:
+    if not persona:
+        return ""
+    return PERSONA_INSTRUCTIONS.get(persona.lower(), "")
+
+
+class LLMOutputCitation(BaseModel):
+    chunk_id: str
+    verbatim_quote: str
+
+
+class LLMOutput(BaseModel):
+    answer: str
+    citations: list[LLMOutputCitation]
 
 
 INTENT_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -92,23 +118,18 @@ def detect_intent(query: str) -> str:
     return best[0] if best[1] > 0 else "query_answering"
 
 
-def _client() -> Groq:
-    return Groq(api_key=get_settings().GROQ_API_KEY)
-
-
 def generate_answer(
     query: str,
     context_chunks: list[dict],
     conversation_history: list[dict] | None = None,
     task: str = "query_answering",
+    persona: str | None = None,
 ) -> str:
     """Generate a RAG answer given query + retrieved context chunks.
 
     ``context_chunks`` should be dicts with at least ``text`` and ``filename`` keys.
     ``conversation_history`` is a list of ``{"role": ..., "content": ...}`` dicts.
     """
-    settings = get_settings()
-
     # Build context block
     context_parts: list[str] = []
     for i, chunk in enumerate(context_chunks, 1):
@@ -120,9 +141,11 @@ def generate_answer(
     task_instruction = TASK_INSTRUCTIONS.get(task, TASK_INSTRUCTIONS["query_answering"])
     if task == "drafting":
         task_instruction = f"{task_instruction}\n\n{INDIAN_DRAFTING_REFERENCE}"
-    messages: list[dict] = [
-        {"role": "system", "content": f"{BASE_SYSTEM_PROMPT}\n\n{task_instruction}"}
-    ]
+    persona_instruction = _persona_instruction(persona)
+    system_prompt = f"{BASE_SYSTEM_PROMPT}\n\n{task_instruction}"
+    if persona_instruction:
+        system_prompt = f"{system_prompt}\n\n{persona_instruction}"
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
 
     if conversation_history:
         # Keep last N turns to stay within token limits
@@ -138,11 +161,83 @@ def generate_answer(
         }
     )
 
-    resp = _client().chat.completions.create(
-        model=settings.LLM_MODEL,
-        messages=cast(Any, messages),
-        max_tokens=settings.LLM_MAX_TOKENS,
-        temperature=settings.LLM_TEMPERATURE,
+    return chat_completion(cast(Any, messages))
+
+
+def generate_answer_with_citations(
+    query: str,
+    context_chunks: list[dict],
+    conversation_history: list[dict] | None = None,
+    task: str = "query_answering",
+    persona: str | None = None,
+) -> tuple[str, list[dict]]:
+    """Return answer text and validated citations using JSON schema output."""
+    task_instruction = TASK_INSTRUCTIONS.get(task, TASK_INSTRUCTIONS["query_answering"])
+    if task == "drafting":
+        task_instruction = f"{task_instruction}\n\n{INDIAN_DRAFTING_REFERENCE}"
+
+    source_map: dict[str, dict] = {}
+    context_parts: list[str] = []
+    for i, chunk in enumerate(context_chunks, 1):
+        chunk_id = f"{chunk.get('document_id', '')}:{chunk.get('chunk_index', i)}"
+        source_map[chunk_id] = chunk
+        src = chunk.get("filename", "unknown")
+        text = chunk.get("text", "")
+        context_parts.append(f"[Source {i}] chunk_id={chunk_id} file={src}\n{text}")
+
+    context_block = "\n\n---\n\n".join(context_parts)
+
+    persona_instruction = _persona_instruction(persona)
+    system_prompt = (
+        f"{BASE_SYSTEM_PROMPT}\n\n{task_instruction}"
+        + (f"\n\n{persona_instruction}" if persona_instruction else "")
+        + "\n\nOutput JSON only with shape: {"
+        "\"answer\": string, \"citations\": [{\"chunk_id\": string, \"verbatim_quote\": string}]}\n"
+        "Use verbatim_quote as exact text from the cited chunk."
     )
 
-    return resp.choices[0].message.content or ""
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
+    if conversation_history:
+        messages.extend(conversation_history[-6:])
+
+    messages.append(
+        {
+            "role": "user",
+            "content": (
+                f"Context documents:\n\n{context_block}\n\n"
+                f"---\n\nQuestion: {query}"
+            ),
+        }
+    )
+
+    raw = chat_completion(
+        cast(Any, messages),
+        response_format={"type": "json_object"},
+    )
+
+    try:
+        parsed = LLMOutput.model_validate(json.loads(raw))
+    except (ValidationError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Invalid LLM JSON output: {exc}")
+
+    citations: list[dict] = []
+    for cite in parsed.citations:
+        chunk = source_map.get(cite.chunk_id)
+        if not chunk:
+            continue
+        text = str(chunk.get("text", ""))
+        if cite.verbatim_quote not in text:
+            continue
+        citations.append(
+            {
+                "document_id": chunk.get("document_id", ""),
+                "filename": chunk.get("filename", ""),
+                "chunk_id": cite.chunk_id,
+                "verbatim_quote": cite.verbatim_quote,
+                "score": float(chunk.get("rerank_score", chunk.get("score", 0.0))),
+                "source_url": None,
+                "last_verified": None,
+            }
+        )
+
+    return parsed.answer, citations

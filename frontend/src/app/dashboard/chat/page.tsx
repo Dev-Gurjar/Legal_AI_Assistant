@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import ChatWindow, { ChatMessage } from "@/components/ChatWindow";
 import ChatInput from "@/components/ChatInput";
-import { chatApi, docsApi } from "@/lib/api";
-import { useChatStore } from "@/lib/store";
+import { chatApi, docsApi, getApiError, type LegalTask } from "@/lib/api";
+import { useChatStore, useUIStore } from "@/lib/store";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -13,6 +13,7 @@ export default function ChatPage() {
   const [loadingStatus, setLoadingStatus] = useState<string>("");
   const { activeConversationId, setActiveConversation, setConversations } =
     useChatStore();
+  const { persona, language } = useUIStore();
 
   // Load existing conversation
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function ChatPage() {
   }, [setConversations]);
 
   const runChat = useCallback(
-    async (text: string) => {
+    async (text: string, task: LegalTask = "query_answering") => {
       const userMsg: ChatMessage = {
         id: Date.now().toString(),
         role: "user",
@@ -64,7 +65,13 @@ export default function ChatPage() {
       }, 1100);
 
       try {
-        const { data } = await chatApi.send(text, activeConversationId ?? undefined);
+        const { data } = await chatApi.send(
+          text,
+          task,
+          activeConversationId ?? undefined,
+          language,
+          persona,
+        );
 
         const assistantMsg: ChatMessage = {
           id: Date.now().toString() + "-a",
@@ -77,6 +84,7 @@ export default function ChatPage() {
             image_url: s.image_url,
             image_caption: s.image_caption,
           })),
+          citations: data.citations || [],
         };
         setMessages((prev) => [...prev, assistantMsg]);
 
@@ -86,7 +94,7 @@ export default function ChatPage() {
         }
         refreshConversations();
       } catch (err: any) {
-        toast.error(err.response?.data?.detail || "Failed to get response");
+        toast.error(getApiError(err, "Failed to get response"));
         // Remove the user message if it failed
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       } finally {
@@ -95,7 +103,7 @@ export default function ChatPage() {
         setLoadingStatus("");
       }
     },
-    [activeConversationId, setActiveConversation, refreshConversations]
+    [activeConversationId, setActiveConversation, refreshConversations, language, persona]
   );
 
   const handleUploadCase = useCallback(
@@ -108,10 +116,11 @@ export default function ChatPage() {
         toast.success(`Uploaded ${filename}`);
         setLoading(false);
         await runChat(
-          `Summarize the uploaded case file '${filename}' for Indian legal practice with key facts, issues, holdings, and practical implications.`
+          `Summarize the uploaded case file '${filename}' for Indian legal practice with key facts, issues, holdings, and practical implications.`,
+          "summarization"
         );
       } catch (err: any) {
-        toast.error(err.response?.data?.detail || "Upload failed");
+        toast.error(getApiError(err, "Upload failed"));
         setLoading(false);
         setLoadingStatus("");
       }

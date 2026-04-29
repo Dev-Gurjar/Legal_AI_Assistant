@@ -1,12 +1,12 @@
 """Document upload & management endpoints."""
 
-from __future__ import annotations
-
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status, BackgroundTasks
 
 from app.api.auth import get_current_user
+from app.config import get_settings
+from app.services.rate_limit import limiter
 from app.db.supabase import get_documents, get_document, delete_document_row
 from app.models.schemas import DocumentListResponse, DocumentOut
 from app.services.qdrant_service import delete_document_vectors
@@ -23,7 +23,9 @@ ALLOWED_TYPES = {
 
 
 @router.post("/upload", response_model=DocumentOut, status_code=202)
+@limiter.limit(get_settings().RATE_LIMIT_UPLOAD)
 async def upload_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),

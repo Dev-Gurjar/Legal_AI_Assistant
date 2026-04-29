@@ -1,0 +1,24 @@
+default: groq
+failover:
+  - groq
+  - together
+  - gemini
+  - cerebras
+  - sarvam
+  - anthropic
+  - openai
+providers:
+  groq:
+    model: groq/llama-3.3-70b-versatile
+  together:
+    model: togetherai/meta-llama/Llama-3.3-70B-Instruct-Turbo-Free
+  gemini:
+    model: gemini/gemini-2.0-flash
+  cerebras:
+    model: cerebras/llama-3.3-70b
+  sarvam:
+    model: sarvam/sarvam-m
+  anthropic:
+    model: anthropic/claude-3-5-sonnet-20240620
+  openai:
+    model: openai/gpt-4.1

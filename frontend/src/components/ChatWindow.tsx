@@ -5,6 +5,8 @@ import ReactMarkdown from "react-markdown";
 import { Bot, User } from "lucide-react";
 import clsx from "clsx";
 import SourceCard from "./SourceCard";
+import { useUIStore } from "@/lib/store";
+import { t, uiLocaleFromLanguage } from "@/lib/i18n";
 
 export interface ChatMessage {
   id: string;
@@ -17,6 +19,15 @@ export interface ChatMessage {
     image_url?: string | null;
     image_caption?: string | null;
   }[];
+  citations?: {
+    document_id: string;
+    filename: string;
+    chunk_id: string;
+    verbatim_quote: string;
+    score: number;
+    source_url?: string | null;
+    last_verified?: string | null;
+  }[];
 }
 
 interface ChatWindowProps {
@@ -27,6 +38,8 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ messages, loading, loadingStatus }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { language } = useUIStore();
+  const locale = uiLocaleFromLanguage(language);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,10 +52,9 @@ export default function ChatWindow({ messages, loading, loadingStatus }: ChatWin
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Bot className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-xl font-bold mb-2">Start a conversation</h2>
+          <h2 className="text-xl font-bold mb-2">{t(locale, "start_conversation")}</h2>
           <p className="text-muted-fg text-sm leading-relaxed">
-            Ask about legal documents such as contracts, case files, notices,
-            and compliance materials. Intent is identified automatically.
+            {t(locale, "start_conversation_hint")}
           </p>
         </div>
       </div>
@@ -90,6 +102,29 @@ export default function ChatWindow({ messages, loading, loadingStatus }: ChatWin
                   <div className="grid gap-2 sm:grid-cols-2">
                     {msg.sources.map((src, i) => (
                       <SourceCard key={i} {...src} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {msg.citations && msg.citations.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-muted-fg mb-2 uppercase tracking-wider">
+                    Citations
+                  </p>
+                  <div className="space-y-2">
+                    {msg.citations.map((cite, i) => (
+                      <div
+                        key={i}
+                        className="rounded-lg border border-border bg-background p-3"
+                      >
+                        <div className="text-xs font-semibold text-foreground">
+                          {cite.filename}
+                        </div>
+                        <p className="text-xs text-muted-fg mt-1 italic">
+                          "{cite.verbatim_quote}"
+                        </p>
+                      </div>
                     ))}
                   </div>
                 </div>

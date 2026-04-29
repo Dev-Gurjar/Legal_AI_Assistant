@@ -4,9 +4,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings, is_validated_cors_origin_regex
-from app.api import auth, documents, chat, admin
+from app.api import auth, documents, chat, admin, features
+from app.services.rate_limit import init_rate_limiter
+from app.services.observability import init_observability
 
 settings = get_settings()
+init_observability()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -14,6 +17,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# ── Rate limiting ─────────────────────────────────────────────────────
+init_rate_limiter(app)
 
 # ── CORS ─────────────────────────────────────────────────────────────────
 allow_credentials = True
@@ -38,6 +44,7 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(documents.router, prefix="/documents", tags=["Documents"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(features.router, prefix="/features", tags=["Features"])
 
 
 @app.get("/", tags=["Health"])
