@@ -17,8 +17,14 @@ except ImportError:
 from app.config import get_settings
 
 settings = get_settings()
+
+
+def _redis_storage_uri(url: str) -> str:
+    return url if "://" in url else f"redis://{url}"
+
+
 _storage_uri = (
-    settings.REDIS_URL
+    _redis_storage_uri(settings.REDIS_URL)
     if settings.RATE_LIMIT_USE_REDIS and settings.REDIS_URL
     else "memory://"
 )
